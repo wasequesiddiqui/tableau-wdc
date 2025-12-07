@@ -13,33 +13,35 @@
                 var sampleRows = rows.slice(1, 20); // use first 20 rows to guess types
 
                 var cols = headers.map((h, idx) => {
-                    // Sanitize header for Tableau ID
-                    let cleanId = h.trim().replace(/[^a-zA-Z0-9_]/g, "_");
+                    // Strip quotes and sanitize header for Tableau ID
+                    let rawHeader = h.trim().replace(/^"|"$/g, "");
+                    let cleanId = rawHeader.replace(/[^a-zA-Z0-9_]/g, "_");
 
                     // Detect numeric type
                     let isNumeric = true;
                     for (let r of sampleRows) {
-                        if (r[idx] && isNaN(r[idx])) {
-                            isNumeric = false;
-                            break;
+                        if (r[idx]) {
+                            let val = r[idx].trim().replace(/^"|"$/g, "");
+                            if (val !== "" && isNaN(val)) {
+                                isNumeric = false;
+                                break;
+                            }
                         }
                     }
 
                     return {
                         id: cleanId,
-                        alias: h.trim(), // original header for display
+                        alias: rawHeader, // original header without quotes
                         dataType: isNumeric ? tableau.dataTypeEnum.float : tableau.dataTypeEnum.string
                     };
                 });
 
-                var tableSchema = {
+                console.log("Sanitized IDs:", cols.map(c => c.id)); // debug
+                schemaCallback([{
                     id: "googleSheetData",
                     alias: "Google Sheet CSV Data",
                     columns: cols
-                };
-
-                console.log("Schema IDs:", cols.map(c => c.id)); // debug
-                schemaCallback([tableSchema]);
+                }]);
             })
             .catch(error => {
                 console.error("Error fetching schema:", error);
@@ -63,8 +65,9 @@
                     if (row.length === headers.length) {
                         var obj = {};
                         headers.forEach((h, idx) => {
-                            let cleanId = h.trim().replace(/[^a-zA-Z0-9_]/g, "_");
-                            let val = row[idx].trim();
+                            let rawHeader = h.trim().replace(/^"|"$/g, "");
+                            let cleanId = rawHeader.replace(/[^a-zA-Z0-9_]/g, "_");
+                            let val = row[idx].trim().replace(/^"|"$/g, "");
                             obj[cleanId] = val === "" ? null : (isNaN(val) ? val : parseFloat(val));
                         });
                         tableData.push(obj);
