@@ -1,7 +1,7 @@
 (function() {
     var myConnector = tableau.makeConnector();
 
-    // Dynamically define schema from CSV headers
+    // Dynamically define schema with type detection + sanitization
     myConnector.getSchema = function(schemaCallback) {
         var url = "https://docs.google.com/spreadsheets/d/1SNOSU6QlB0pbR-cLPy2r2d4iiIMSzRsseatuZqLl6co/gviz/tq?tqx=out:csv";
 
@@ -9,14 +9,28 @@
             .then(response => response.text())
             .then(csvText => {
                 var rows = csvText.split("\n").map(r => r.split(","));
-                var headers = rows[0]; // first row = column names
+                var headers = rows[0];
+                var sampleRows = rows.slice(1, 20); // use first 20 rows to guess types
 
-                // Build schema dynamically
-                var cols = headers.map(h => ({
-                    id: h.trim(),
-                    alias: h.trim(),
-                    dataType: tableau.dataTypeEnum.string // default to string
-                }));
+                var cols = headers.map((h, idx) => {
+                    // Sanitize header for Tableau ID
+                    let cleanId = h.trim().replace(/[^a-zA-Z0-9_]/g, "_");
+
+                    // Detect numeric type
+                    let isNumeric = true;
+                    for (let r of sampleRows) {
+                        if (r[idx] && isNaN(r[idx])) {
+                            isNumeric = false;
+                            break;
+                        }
+                    }
+
+                    return {
+                        id: cleanId,
+                        alias: h.trim(), // original header for display
+                        dataType: isNumeric ? tableau.dataTypeEnum.float : tableau.dataTypeEnum.string
+                    };
+                });
 
                 var tableSchema = {
                     id: "googleSheetData",
@@ -24,6 +38,7 @@
                     columns: cols
                 };
 
+                console.log("Schema IDs:", cols.map(c => c.id)); // debug
                 schemaCallback([tableSchema]);
             })
             .catch(error => {
@@ -48,12 +63,15 @@
                     if (row.length === headers.length) {
                         var obj = {};
                         headers.forEach((h, idx) => {
-                            obj[h.trim()] = row[idx];
+                            let cleanId = h.trim().replace(/[^a-zA-Z0-9_]/g, "_");
+                            let val = row[idx].trim();
+                            obj[cleanId] = val === "" ? null : (isNaN(val) ? val : parseFloat(val));
                         });
                         tableData.push(obj);
                     }
                 }
 
+                console.log("Sample row:", tableData[0]); // debug
                 table.appendRows(tableData);
                 doneCallback();
             })
