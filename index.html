@@ -1,12 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>My Tableau WDC</title>
+  <meta charset="UTF-8">
+  <title>Google Sheets Tableau WDC</title>
+  <!-- Load Tableau WDC SDK -->
   <script src="https://connectors.tableau.com/libs/tableauwdc-2.3.latest.js"></script>
+  <!-- Load your connector logic -->
   <script src="wdc.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+  </style>
 </head>
 <body>
-  <h1>My Tableau Web Data Connector</h1>
+  <h1>Google Sheets → Tableau Web Data Connector</h1>
+  <p>This connector fetches data dynamically from your Google Sheet CSV export.</p>
   <button id="submitButton">Get Data</button>
 </body>
 </html>
+<script>
+  document.getElementById('submitButton').addEventListener('click', function() {
+    tableau.connectionName = "Google Sheets Data";
+    tableau.submit();
+  });
+</script>
