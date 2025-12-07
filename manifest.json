@@ -1,0 +1,12 @@
+
+{
+  "name": "My Tableau WDC",
+  "version": "1.0.0",
+  "description": "A simple Tableau Web Data Connector that fetches data from an API.",
+  "author": "Your Name",
+  "license": "MIT",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server"
+  }
+}
