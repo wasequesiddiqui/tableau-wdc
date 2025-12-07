@@ -1,20 +1,24 @@
 (function() {
     var myConnector = tableau.makeConnector();
 
-    // Dynamically define schema with type detection + sanitization
+    // List of allowed columns
+    const allowedCols = ["Student Name", "Date Formatted", "Decimal Time"];
+
     myConnector.getSchema = function(schemaCallback) {
         var url = "https://docs.google.com/spreadsheets/d/1SNOSU6QlB0pbR-cLPy2r2d4iiIMSzRsseatuZqLl6co/gviz/tq?tqx=out:csv";
 
         fetch(url)
             .then(response => response.text())
             .then(csvText => {
+                csvText = csvText.replace(/^\uFEFF/, ""); // strip BOM
                 var rows = csvText.split("\n").map(r => r.split(","));
                 var headers = rows[0];
-                var sampleRows = rows.slice(1, 20); // use first 20 rows to guess types
+                var sampleRows = rows.slice(1, 20);
 
                 var cols = headers.map((h, idx) => {
-                    // Strip quotes and sanitize header for Tableau ID
                     let rawHeader = h.trim().replace(/^"|"$/g, "");
+                    if (!allowedCols.includes(rawHeader)) return null; // skip if not allowed
+
                     let cleanId = rawHeader.replace(/[^a-zA-Z0-9_]/g, "_");
 
                     // Detect numeric type
@@ -31,12 +35,12 @@
 
                     return {
                         id: cleanId,
-                        alias: rawHeader, // original header without quotes
+                        alias: rawHeader,
                         dataType: isNumeric ? tableau.dataTypeEnum.float : tableau.dataTypeEnum.string
                     };
-                });
+                }).filter(c => c !== null);
 
-                console.log("Sanitized IDs:", cols.map(c => c.id)); // debug
+                console.log("Schema IDs:", cols.map(c => c.id));
                 schemaCallback([{
                     id: "googleSheetData",
                     alias: "Google Sheet CSV Data",
@@ -49,13 +53,13 @@
             });
     };
 
-    // Fetch and parse CSV data
     myConnector.getData = function(table, doneCallback) {
         var url = "https://docs.google.com/spreadsheets/d/1SNOSU6QlB0pbR-cLPy2r2d4iiIMSzRsseatuZqLl6co/gviz/tq?tqx=out:csv";
 
         fetch(url)
             .then(response => response.text())
             .then(csvText => {
+                csvText = csvText.replace(/^\uFEFF/, "");
                 var rows = csvText.split("\n").map(r => r.split(","));
                 var headers = rows[0];
                 var tableData = [];
@@ -66,6 +70,8 @@
                         var obj = {};
                         headers.forEach((h, idx) => {
                             let rawHeader = h.trim().replace(/^"|"$/g, "");
+                            if (!allowedCols.includes(rawHeader)) return; // skip if not allowed
+
                             let cleanId = rawHeader.replace(/[^a-zA-Z0-9_]/g, "_");
                             let val = row[idx].trim().replace(/^"|"$/g, "");
                             obj[cleanId] = val === "" ? null : (isNaN(val) ? val : parseFloat(val));
@@ -74,7 +80,7 @@
                     }
                 }
 
-                console.log("Sample row:", tableData[0]); // debug
+                console.log("Sample row:", tableData[0]);
                 table.appendRows(tableData);
                 doneCallback();
             })
